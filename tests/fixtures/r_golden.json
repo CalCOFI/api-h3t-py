@@ -1,0 +1,78 @@
+{
+  "zoom_to_res": {
+    "z": [-1, 0, 0.5, 1, 1.5, 2.2, 2.5, 3.4, 4.6, 5.8, 7, 8.2, 9.4, 10.6, 11.8, 12, 13, 15, 20, 22, 22.5, 25],
+    "res": [1, 1, 1, 1, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10]
+  },
+  "h3_edge_length_deg": {
+    "r": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    "deg": [3.75703205141601, 1.42002463939223, 0.536718864488001, 0.202860662770318, 0.0766741234982859, 0.028980094681474, 0.0109534462140408, 0.00414001352592486, 0.00156477803057726, 0.000591430503703552]
+  },
+  "tile_bbox": [
+    {
+      "z": 0,
+      "x": 0,
+      "y": 0,
+      "lon_min": -180,
+      "lon_max": 180,
+      "lat_min": -85.0511287798066,
+      "lat_max": 85.0511287798066
+    },
+    {
+      "z": 1,
+      "x": 0,
+      "y": 0,
+      "lon_min": -180,
+      "lon_max": 0,
+      "lat_min": 0,
+      "lat_max": 85.0511287798066
+    },
+    {
+      "z": 1,
+      "x": 1,
+      "y": 1,
+      "lon_min": 0,
+      "lon_max": 180,
+      "lat_min": -85.0511287798066,
+      "lat_max": 0
+    },
+    {
+      "z": 5,
+      "x": 3,
+      "y": 12,
+      "lon_min": -146.25,
+      "lon_max": -135,
+      "lat_min": 31.952162238025,
+      "lat_max": 40.9798980696201
+    },
+    {
+      "z": 8,
+      "x": 41,
+      "y": 100,
+      "lon_min": -122.34375,
+      "lon_max": -120.9375,
+      "lat_min": 35.4606699514953,
+      "lat_max": 36.5978891330702
+    },
+    {
+      "z": 10,
+      "x": 163,
+      "y": 397,
+      "lon_min": -122.6953125,
+      "lon_max": -122.34375,
+      "lat_min": 37.1603165467368,
+      "lat_max": 37.4399740522706
+    },
+    {
+      "z": 14,
+      "x": 2613,
+      "y": 6361,
+      "lon_min": -122.58544921875,
+      "lon_max": -122.5634765625,
+      "lat_min": 37.2653099556187,
+      "lat_max": 37.2827946491104
+    }
+  ],
+  "wrap_tile_sql_has_n": "WITH user_q AS (\nSELECT hex_h3res5 AS cell_id, AVG(std_tally) AS value, COUNT(*) AS n FROM bio_obs WHERE species_id = 42 GROUP BY 1\n),\ncells AS (\n  SELECT\n    CAST(cell_id AS BIGINT)                 AS _cell,\n    value::DOUBLE                           AS value,\n    TRY_CAST(n AS BIGINT) AS n\n  FROM user_q\n  WHERE value IS NOT NULL\n    AND NOT isnan(value::DOUBLE)\n    AND isfinite(value::DOUBLE)\n)\nSELECT\n  h3_h3_to_string(_cell) AS h3id,\n  value,\n  n\nFROM cells\nWHERE h3_cell_to_lng(_cell) BETWEEN -146.3650111852 AND -134.8849888148\n  AND h3_cell_to_lat(_cell) BETWEEN 31.8371510528 AND 41.0949092549\nLIMIT 50000",
+  "wrap_tile_sql_no_n": "WITH user_q AS (\nSELECT hex_h3res5 AS cell_id, AVG(temperature) AS value FROM env_obs\n),\ncells AS (\n  SELECT\n    CAST(cell_id AS BIGINT)                 AS _cell,\n    value::DOUBLE                           AS value,\n    NULL::BIGINT AS n\n  FROM user_q\n  WHERE value IS NOT NULL\n    AND NOT isnan(value::DOUBLE)\n    AND isfinite(value::DOUBLE)\n)\nSELECT\n  h3_h3_to_string(_cell) AS h3id,\n  value,\n  n\nFROM cells\nWHERE h3_cell_to_lng(_cell) BETWEEN -146.2500000000 AND -135.0000000000\n  AND h3_cell_to_lat(_cell) BETWEEN 31.9521622380 AND 40.9798980696\nLIMIT 50000",
+  "wrap_stats_sql": "WITH user_q AS (\nSELECT hex_h3res5 AS cell_id, AVG(std_tally) AS value, COUNT(*) AS n FROM bio_obs WHERE species_id = 42 GROUP BY 1\n)\nSELECT\n  MIN(value::DOUBLE)                           AS min,\n  MAX(value::DOUBLE)                           AS max,\n  approx_quantile(value::DOUBLE, 0.02)         AS p02,\n  approx_quantile(value::DOUBLE, 0.98)         AS p98,\n  COUNT(*)                                     AS n\nFROM user_q\nWHERE value IS NOT NULL\n  AND NOT isnan(value::DOUBLE)\n  AND isfinite(value::DOUBLE)"
+}
