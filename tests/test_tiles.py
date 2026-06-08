@@ -25,7 +25,18 @@ def test_decode_roundtrips_utf8():
     assert decode_sql(enc) == s
 
 
-@pytest.mark.parametrize("bad", [None, "", "!!!", "not-base64"])
+def test_decode_accepts_urlsafe_unpadded():
+    # the client (mapgl/int-app h3t_b64) sends URL-safe base64 with '='
+    # padding stripped. '????' encodes to 'Pz8/Pw==' (contains '/'), so the
+    # url-safe '/'→'_' translation and the re-padding are both exercised.
+    s = "SELECT 1 AS cell_id, 1 AS value WHERE x = '????'"
+    std = base64.b64encode(s.encode("utf-8")).decode("ascii")
+    urlsafe_unpadded = std.replace("+", "-").replace("/", "_").rstrip("=")
+    assert "_" in urlsafe_unpadded and not urlsafe_unpadded.endswith("=")
+    assert decode_sql(urlsafe_unpadded) == s
+
+
+@pytest.mark.parametrize("bad", [None, "", "!!!", "@@@bad@@@"])
 def test_decode_rejects_invalid(bad):
     assert decode_sql(bad) is None
 
@@ -81,6 +92,17 @@ def test_build_cells_emits_n_when_present():
     assert cells == [
         {"h3id": "85283473fffffff", "value": 1.5, "n": 10},
         {"h3id": "85283447fffffff", "value": 2.0, "n": 4},
+    ]
+
+
+def test_build_cells_rounds_value_to_4_decimals():
+    # matches the R service's jsonlite digits=4 wire format
+    cols = ["h3id", "value", "n"]
+    rows = [("85283473fffffff", 6.916113826, 7), ("85283447fffffff", 24.017988455, 3)]
+    cells = build_cells(cols, rows)
+    assert cells == [
+        {"h3id": "85283473fffffff", "value": 6.9161, "n": 7},
+        {"h3id": "85283447fffffff", "value": 24.018, "n": 3},
     ]
 
 

@@ -15,11 +15,19 @@ _RES_PLACEHOLDER = re.compile(r"\{\{\s*res\s*\}\}")
 
 
 def decode_sql(q: str | None) -> str | None:
-    """Base64-decode a SQL query. Returns None on missing/invalid input."""
+    """Base64-decode a SQL query. Returns None on missing/invalid input.
+
+    The client (mapgl / int-app `h3t_b64`) sends URL-safe base64 (RFC 4648
+    §5: `+`→`-`, `/`→`_`) with trailing `=` padding stripped. Restore the
+    standard alphabet and re-pad before decoding so both URL-safe-unpadded
+    and plain standard base64 are accepted.
+    """
     if not q:
         return None
+    s = q.replace("-", "+").replace("_", "/")
+    s += "=" * (-len(s) % 4)
     try:
-        return base64.b64decode(q, validate=True).decode("utf-8")
+        return base64.b64decode(s, validate=True).decode("utf-8")
     except (ValueError, UnicodeDecodeError):
         return None
 
@@ -97,7 +105,13 @@ def build_cells(
 
     out: list[dict[str, Any]] = []
     for r in rows:
-        cell: dict[str, Any] = {"h3id": r[i_h3id], "value": r[i_value]}
+        value = r[i_value]
+        # Round to 4 decimals to match the R service's JSON wire format
+        # (jsonlite serializes doubles with digits=4 by default). Keeps the
+        # h3j payload byte-compatible and avoids over-precise map tooltips.
+        if value is not None:
+            value = round(float(value), 4)
+        cell: dict[str, Any] = {"h3id": r[i_h3id], "value": value}
         n = r[i_n]
         if n is not None:
             cell["n"] = int(n)
