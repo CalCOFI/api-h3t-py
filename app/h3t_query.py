@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 # --- zoom / resolution ---------------------------------------------------
 
-# mirrors int-app/app/global.R:175-181 (and api-h3t/h3t_query.R:7-13)
+# mirrors db-viz-hex/app/global.R:175-181 (and api-h3t/h3t_query.R:7-13)
 def _make_zoom_breaks() -> list[float]:
     min_res, max_res = 1, 10
     n_breaks = (max_res - min_res + 1) + 1  # 11
@@ -98,7 +98,14 @@ _TILE_TEMPLATE = (
     "  value,\n"
     "  n\n"
     "FROM cells\n"
-    "WHERE h3_cell_to_lng(_cell) BETWEEN {lm:.10f} AND {lM:.10f}\n"
+    # antimeridian-aware: a cell straddling +/-180 must be returned to BOTH
+    # edge tiles (its centroid is on one side, but its geometry overhangs the
+    # other), so also match the +/-360 wrapped longitude against the (buffered)
+    # tile bbox. the client then places each cell on the side of the tile it
+    # is rendering.
+    "WHERE (h3_cell_to_lng(_cell)       BETWEEN {lm:.10f} AND {lM:.10f}\n"
+    "    OR h3_cell_to_lng(_cell) + 360 BETWEEN {lm:.10f} AND {lM:.10f}\n"
+    "    OR h3_cell_to_lng(_cell) - 360 BETWEEN {lm:.10f} AND {lM:.10f})\n"
     "  AND h3_cell_to_lat(_cell) BETWEEN {am:.10f} AND {aM:.10f}\n"
     "LIMIT {max_rows:d}"
 )

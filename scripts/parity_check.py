@@ -28,7 +28,7 @@ import httpx
 
 
 # Curated query fixture — keep these synthetic so they don't depend on the
-# specific table schema. Extend with real int-app queries before cutover.
+# specific table schema. Extend with real db-viz-hex queries before cutover.
 QUERIES: dict[str, str] = {
     "minimal_const": (
         "SELECT 599405990948208639::BIGINT AS cell_id, 1.0 AS value, 1 AS n"

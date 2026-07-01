@@ -33,7 +33,7 @@ R are called out under [Breaking changes from R](#breaking-changes-from-r).
       H3T_APP_GZIP: "false"
     volumes:
       # calcofi_latest.duckdb is a symlink to the current versioned release.
-      - /share/github/CalCOFI/int-app/data:/data:ro
+      - /share/github/CalCOFI/db-viz-hex/data:/data:ro
     expose:
       - "8889"
 ```
@@ -64,9 +64,9 @@ To serve more than one DuckDB release from the same endpoint, swap
 
 Clients then pass `?db=prev` to switch. Without `?db=`, behaviour is unchanged.
 
-## How int-app consumes it
+## How db-viz-hex consumes it
 
-`int-app` (`https://app.calcofi.io/int/`) is wired to the public endpoint in
+`db-viz-hex` (`https://app.calcofi.io/db-viz-hex/`) is wired to the public endpoint in
 `app/global.R` (set via `Sys.setenv`, **not** `.Renviron` — a comment there
 notes `.Renviron` wasn't taking effect):
 
@@ -78,7 +78,7 @@ Sys.setenv(
 ```
 
 It only calls `/h3t/stats` and the tile endpoint, so the cutover was
-transparent — no int-app code change was needed. The client (`mapgl` /
+transparent — no db-viz-hex code change was needed. The client (`mapgl` /
 `h3t_b64`) sends **URL-safe base64 with `=` padding stripped**; the service
 accepts that (and plain standard base64) — see the base64 note under
 [History](#history--gotchas).
@@ -90,7 +90,7 @@ accepts that (and plain standard base64) — see the base64 note under
 ```bash
 # 1. flip the symlink to the new release
 sudo ln -sfn calcofi_v2026.MM.DD.duckdb \
-  /share/github/CalCOFI/int-app/data/calcofi_latest.duckdb
+  /share/github/CalCOFI/db-viz-hex/data/calcofi_latest.duckdb
 
 # 2. bounce the API so it reopens the DuckDB file.
 #    `restart` reuses the SAME container (IP unchanged) → Varnish keeps
@@ -103,10 +103,10 @@ sudo docker compose restart h3t_api_py
 #    stale entries explicitly)
 sudo docker exec varnish varnishadm ban 'obj.http.X-Url ~ "^/h3t/"'
 
-# 4. point int-app at the new release: edit app/global.R H3T_RELEASE, then
+# 4. point db-viz-hex at the new release: edit app/global.R H3T_RELEASE, then
 sudo sed -i 's/H3T_RELEASE  = "v2026[0-9.]*"/H3T_RELEASE  = "v2026.MM.DD"/' \
-  /share/github/CalCOFI/int-app/app/global.R
-sudo touch /share/github/CalCOFI/int-app/app/restart.txt
+  /share/github/CalCOFI/db-viz-hex/app/global.R
+sudo touch /share/github/CalCOFI/db-viz-hex/app/restart.txt
 ```
 
 ### Rebuilding / recreating the container
@@ -219,17 +219,17 @@ worth keeping:
   url-safe, padding-stripped `q`, which the strict decoder rejected (400, no
   hexagons). Fixed in `app/tiles.py::decode_sql` (restore `-_`→`+/`, re-pad).
 - **Repo layout.** CalCOFI repos were consolidated under
-  `/share/github/CalCOFI/` (int-app, workflows, server, api-h3t-py, …). The
+  `/share/github/CalCOFI/` (db-viz-hex, workflows, server, api-h3t-py, …). The
   DuckDB mount and shiny-server symlinks point at the new paths.
 
 ## Breaking changes from R
 
-Intentional differences. Clients other than `int-app` should be audited:
+Intentional differences. Clients other than `db-viz-hex` should be audited:
 
 1. **`/h3t/health` response shape** — R returned
    `{"ok":true, "db":"...", "db_mtime":"..."}`. Python returns
    `{"ok":true, "default_db":"...", "dbs":{name:{path, mtime}, ...}}`.
-   The `ok` key is preserved; nothing else. (int-app does not parse health.)
+   The `ok` key is preserved; nothing else. (db-viz-hex does not parse health.)
 2. **`/h3t/meta` response** — gains `available_dbs`, `default_db`, `db`,
    `db_mtime` keys. `tables`, `h3_columns_per_row`, `default_zoom_breaks`
    are unchanged.
