@@ -62,7 +62,7 @@ Varnish keeps hitting the R service until step 6.
       # always serve plain JSON.
       H3T_APP_GZIP: "false"
     volumes:
-      - /share/github/int-app/data:/data:ro
+      - /share/github/db-viz-hex/data:/data:ro
     expose:
       - "8889"
 ```
@@ -144,11 +144,11 @@ ETags match. If any divergence shows up, **do not proceed**.
 > `docker network ls | grep server` will reveal it
 > (typically `server_default` if your compose project is in `server/`).
 
-### Alternative — extend parity to int-app real queries
+### Alternative — extend parity to db-viz-hex real queries
 
 For a more thorough test, extend `scripts/parity_check.py`'s `QUERIES`
 dict with the actual SQL templates from
-`int-app/app/functions_h3t.R` (species + env queries with real species
+`db-viz-hex/app/functions_h3t.R` (species + env queries with real species
 ids and date ranges). Run again before flipping Varnish.
 
 ## Step 6 — flip Varnish to the new backend
@@ -200,14 +200,14 @@ sudo docker compose exec varnish varnishadm ban 'req.url ~ "^/h3t/"'
 curl -s https://h3t.calcofi.io/h3t/health | jq .
 # expect: {"ok":true, "default_db":"default", "dbs":{...}}
 #        — note the new shape (R returned a different shape).
-#        If int-app or other clients parsed /health, audit them.
+#        If db-viz-hex or other clients parsed /health, audit them.
 
 curl -sI "https://h3t.calcofi.io/h3t/4/3/6.h3t?q=$Q&release=v2026.04.08" \
   | grep -Ei '^(HTTP|X-Cache|ETag|Cache-Control|X-Calcofi-Release)'
 # first hit: X-Cache: MISS; repeat: X-Cache: HIT
 ```
 
-Open `int-app` (`https://app.calcofi.io` or wherever it's routed) and
+Open `db-viz-hex` (`https://app.calcofi.io` or wherever it's routed) and
 pan/zoom on the map. Confirm:
 - Tiles render without visible seams.
 - Legend populates (stats endpoint works).
@@ -266,7 +266,7 @@ Same flow as the R service:
 ```bash
 # 1. flip the symlink to the new release
 sudo ln -sfn calcofi_v2026.MM.DD.duckdb \
-  /share/github/int-app/data/calcofi_latest.duckdb
+  /share/github/db-viz-hex/data/calcofi_latest.duckdb
 
 # 2. bounce the API so it reopens the DuckDB file
 sudo docker compose restart h3t_api_py
@@ -275,10 +275,10 @@ sudo docker compose restart h3t_api_py
 #    won't hit them, but this kills any stale entries explicitly)
 sudo docker compose exec varnish varnishadm ban 'req.url ~ "^/h3t/"'
 
-# 4. update H3T_RELEASE in the int-app's .Renviron and restart it
+# 4. update H3T_RELEASE in the db-viz-hex's .Renviron and restart it
 echo 'H3T_RELEASE=v2026.MM.DD' \
-  | sudo tee /srv/shiny-server/int-app/.Renviron > /dev/null
-sudo touch /srv/shiny-server/int-app/restart.txt
+  | sudo tee /srv/shiny-server/db-viz-hex/.Renviron > /dev/null
+sudo touch /srv/shiny-server/db-viz-hex/restart.txt
 ```
 
 ## Troubleshooting
@@ -302,7 +302,7 @@ sudo docker compose exec varnish curl -sI \
 ## Breaking-change call-outs
 
 These are intentional changes from the R service. Clients other than
-`int-app` should be audited:
+`db-viz-hex` should be audited:
 
 1. **`/h3t/health` response shape** — R returned
    `{"ok":true, "db":"...", "db_mtime":"..."}`. Python returns

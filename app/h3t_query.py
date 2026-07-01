@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 # --- zoom / resolution ---------------------------------------------------
 
-# mirrors int-app/app/global.R:175-181 (and api-h3t/h3t_query.R:7-13)
+# mirrors db-viz-hex/app/global.R:175-181 (and api-h3t/h3t_query.R:7-13)
 def _make_zoom_breaks() -> list[float]:
     min_res, max_res = 1, 10
     n_breaks = (max_res - min_res + 1) + 1  # 11
