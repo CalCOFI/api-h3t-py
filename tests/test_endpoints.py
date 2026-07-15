@@ -31,7 +31,10 @@ def test_meta_default_db(app_client):
     assert body["db"] == "default"
     assert body["tables"] == ["t1", "t2"]
     assert body["available_dbs"] == ["default", "wrangling"]
-    assert body["h3_columns_per_row"] == [f"hex_h3res{r}" for r in range(1, 11)]
+    # core-schema convention: single res-10 hex_id + h3_cell_to_parent
+    assert body["h3_index_column"] == "hex_id"
+    assert body["h3_index_resolution"] == 10
+    assert body["h3_parent_expr"] == "h3_cell_to_parent(hex_id, {{res}})"
 
 
 def test_meta_with_db_param(app_client):

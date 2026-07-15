@@ -35,8 +35,10 @@ def decode_sql(q: str | None) -> str | None:
 def substitute_res(sql: str, res_h3: int) -> str:
     """Replace `{{res}}` placeholders with an integer H3 resolution.
 
-    Lets clients bake `hex_h3res{{res}}` into a single base64 query that
-    covers every zoom level — the server fills in the actual resolution.
+    Lets clients bake `h3_cell_to_parent(hex_id, {{res}})` into a single base64
+    query that covers every zoom level — the server fills in the actual
+    resolution. (Pre-consolidation clients baked `hex_h3res{{res}}`; the wire
+    contract is identical — only the client's SELECT expression changed.)
     """
     return _RES_PLACEHOLDER.sub(str(int(res_h3)), sql)
 

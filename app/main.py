@@ -213,7 +213,13 @@ async def meta(
         "db": name,
         "db_mtime": db.db_mtime(name),
         "tables": tables,
-        "h3_columns_per_row": [f"hex_h3res{r}" for r in range(1, 11)],
+        # per-row H3 index convention: a single res-10 `hex_id` column; derive
+        # coarser cells at query time with h3_cell_to_parent(hex_id, {res}).
+        # Replaces the old wide hex_h3res1..10 columns retired in the
+        # core-schema consolidation (release v2026.07.15+).
+        "h3_index_column": "hex_id",
+        "h3_index_resolution": 10,
+        "h3_parent_expr": "h3_cell_to_parent(hex_id, {{res}})",
         "default_zoom_breaks": h3t_query.h3t_zoom_breaks,
         "available_dbs": db.db_names(),
         "default_db": app.state.default_db,
