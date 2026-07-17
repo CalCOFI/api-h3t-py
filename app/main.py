@@ -90,12 +90,21 @@ def _resolve_db(db_arg: str | None) -> str:
     return db_arg or app.state.default_db
 
 
-def _validate_q(q: str | None, res_h3: int | None) -> dict:
+def _validate_q(
+    q: str | None,
+    res_h3: int | None,
+    bbox=None,
+    buffer_deg: float = 0.0,
+) -> dict:
     sql = tiles.decode_sql(q)
     if sql is None:
         raise HTTPException(400, "q is required and must be valid base64")
     if res_h3 is not None:
         sql = tiles.substitute_res(sql, res_h3)
+    # tile route passes bbox -> {{bbox}} becomes a lat/lng prune predicate;
+    # stats route passes bbox=None -> {{bbox}} collapses to empty. Must run
+    # before validate_sql (which parses + re-serializes via sqlglot).
+    sql = tiles.substitute_bbox(sql, bbox, buffer_deg)
     v = validate_sql(sql)
     if not v.get("ok"):
         raise HTTPException(400, v.get("reason") or "invalid SQL")
@@ -138,12 +147,15 @@ async def tile(
     con = db.get_connection(name)
     db_mtime = db.db_mtime(name)
 
-    v = _validate_q(q, qres)
-    buffer_deg = h3t_query.h3_edge_length_deg(qres) * 1.5
+    # inner (base-cell) bbox prune buffer must exceed the outer (display-cell
+    # centroid) buffer by ~one display-cell edge so the prune is a superset of
+    # the outer filter — see tiles.substitute_bbox / wrap_tile_sql.
+    edge = h3t_query.h3_edge_length_deg(qres)
+    v = _validate_q(q, qres, bbox=bbox, buffer_deg=edge * 3.0)
     wrapped = h3t_query.wrap_tile_sql(
         v["normalized"], bbox, has_n=bool(v.get("has_n")),
         max_rows=config.MAX_ROWS_PER_TILE,
-        buffer_deg=buffer_deg,
+        buffer_deg=edge * 1.5,
     )
 
     try:
