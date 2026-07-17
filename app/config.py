@@ -65,6 +65,16 @@ def load_db_paths() -> tuple[dict[str, Path], str]:
 MAX_ROWS_PER_TILE: int = int(os.getenv("H3T_MAX_ROWS", "50000"))
 STMT_TIMEOUT_MS: int   = int(os.getenv("H3T_STMT_TIMEOUT_MS", "3000"))
 
+# automatic per-tile spatial pruning: coarse H3 resolution of the stored
+# `hex_prune` column (must match the store build's H3T_PRUNE_RES). The server
+# derives each tile's covering res-PRUNE_RES cells from z/x/y and injects
+# `hex_prune IN (...)`; skipped for tiles coarser than this or when the covering
+# set exceeds MAX_COVER_CELLS (correctness always held by the outer centroid
+# filter). Stores without a hex_prune column (e.g. CalCOFI's bio_obs/env_obs)
+# are simply never injected — a no-op.
+PRUNE_RES: int       = int(os.getenv("H3T_PRUNE_RES", "3"))
+MAX_COVER_CELLS: int = int(os.getenv("H3T_MAX_COVER_CELLS", "2048"))
+
 # CORS
 CORS_ORIGIN: str = os.getenv("H3T_CORS_ORIGIN", "*")
 
